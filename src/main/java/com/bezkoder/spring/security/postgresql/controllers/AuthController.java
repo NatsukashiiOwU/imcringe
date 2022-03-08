@@ -1,24 +1,30 @@
 package com.bezkoder.spring.security.postgresql.controllers;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+import com.bezkoder.spring.security.postgresql.models.Cdc;
+import com.bezkoder.spring.security.postgresql.repository.CdcRepository;
+import net.bytebuddy.utility.RandomString;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.bezkoder.spring.security.postgresql.models.ERole;
 import com.bezkoder.spring.security.postgresql.models.Role;
@@ -46,10 +52,16 @@ public class AuthController {
 	RoleRepository roleRepository;
 
 	@Autowired
+	CdcRepository cdcRepository;
+
+	@Autowired
 	PasswordEncoder encoder;
 
 	@Autowired
 	JwtUtils jwtUtils;
+
+	@Autowired
+	private JavaMailSender mailSender;
 
 	@PostMapping("/signin")
 		public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -66,14 +78,15 @@ public class AuthController {
 					.collect(Collectors.toList());
 
 		return ResponseEntity.ok(new JwtResponse(jwt, 
-												 userDetails.getId(), 
+												 userDetails.getId(),
+												 userDetails.getCdc_id(),
 												 userDetails.getUsername(), 
 												 userDetails.getEmail(), 
 												 roles));
 	}
 
 	@PostMapping("/signup")
-	public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+	public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest, HttpServletRequest request) throws MessagingException, UnsupportedEncodingException {
 		if (userRepository.existsByUsername(signUpRequest.getUsername())) {
 			return ResponseEntity
 					.badRequest()
@@ -88,8 +101,7 @@ public class AuthController {
 
 		// Create new user's account
 		User user = new User(signUpRequest.getUsername(), 
-							 signUpRequest.getEmail(),
-							 encoder.encode(signUpRequest.getPassword()));
+							 signUpRequest.getEmail());
 
 		Set<String> strRoles = signUpRequest.getRole();
 		Set<Role> roles = new HashSet<>();
@@ -121,9 +133,92 @@ public class AuthController {
 			});
 		}
 
+		if(!cdcRepository.existsByCdcName(signUpRequest.getUniversity())) {
+			Cdc newCdc = new Cdc();
+			newCdc.setUniversityName(signUpRequest.getUniversity());
+			newCdc.setCdcAdminName(user.getUsername());
+
+			cdcRepository.save(newCdc);
+		}
+		Cdc cdc = cdcRepository.findByCdcUniversityName(signUpRequest.getUniversity());
+
 		user.setRoles(roles);
+		user.setCdc_rel(cdc);
+
+		String randomPassword = RandomString.make(8);
+		String encodedPassword = encoder.encode(randomPassword);
+		user.setPassword(encodedPassword);
+
+		String randomCode = RandomString.make(64);
+		user.setVerificationCode(randomCode);
+		user.setEnabled(false);
+
 		userRepository.save(user);
+
+		String siteURL = request.getRequestURL().toString();
+		siteURL = siteURL.replace(request.getServletPath(), "");
+		siteURL += "/api/auth";
+		sendVerificationEmailApi(user, siteURL, randomPassword);
 
 		return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
 	}
+
+	@GetMapping("/verifyUser")
+	public ResponseEntity<?> verifyUser(@Valid @Param("code") String code) {
+		if (verify(code)) {
+			return ResponseEntity.ok(new MessageResponse("verify successfull!"));
+		} else {
+			return ResponseEntity.ok(new MessageResponse("verify fail!"));
+		}
+	}
+
+	public void sendVerificationEmailApi(User user, String siteURL, String randomPassword)
+			throws MessagingException, UnsupportedEncodingException {
+		String toAddress = user.getEmail();
+		String fromAddress = "alpsdi78@gmail.com";
+		String senderName = "ThatAnimeKun";
+		String subject = "Please verify your registration";
+		String content = "Dear [[name]],<br>"
+				+ "Here is your password: [[password]]<br>"
+				+ "Please click the link below to verify your registration:<br>"
+				+ "<h3><a href=\"[[URL]]\" target=\"_self\">VERIFY</a></h3>"
+				+ "Thank you,<br>"
+				+ "Your company name.";
+
+		MimeMessage message = mailSender.createMimeMessage();
+		MimeMessageHelper helper = new MimeMessageHelper(message);
+
+		helper.setFrom(fromAddress, senderName);
+		helper.setTo(toAddress);
+		helper.setSubject(subject);
+
+		content = content.replace("[[name]]", user.getUsername());
+		String verifyURL = siteURL + "/verifyUser?code=" + user.getVerificationCode();
+
+		content = content.replace("[[URL]]", verifyURL);
+
+		content = content.replace("[[password]]", randomPassword);
+
+		helper.setText(content, true);
+
+		mailSender.send(message);
+
+		System.out.println("Email has been sent");
+	}
+
+	public boolean verify(String verificationCode) {
+		User user = userRepository.findByVerificationCode(verificationCode);
+
+		if (user == null || user.isEnabled()) {
+			return false;
+		} else {
+			user.setVerificationCode(null);
+			user.setEnabled(true);
+			userRepository.save(user);
+
+			return true;
+		}
+
+	}
+
 }

@@ -1,6 +1,8 @@
 package com.bezkoder.spring.security.postgresql.models;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.persistence.*;
@@ -38,18 +40,24 @@ public class User {
 				inverseJoinColumns = @JoinColumn(name = "role_id"))
 	private Set<Role> roles = new HashSet<>();
 
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinTable(	name = "cdc_rel",
 			joinColumns = @JoinColumn(name = "user_id"),
 			inverseJoinColumns = @JoinColumn(name = "cdc_id"))
-	private Long cdc_id;
+	private Cdc cdc_rel;
 
-	public User() {
-	}
-
-	public User(String username, String email, String password) {
+	public User(String username, String email) {
 		this.username = username;
 		this.email = email;
-		this.password = password;
+	}
+
+	@Column(name = "verification_code", length = 64)
+	private String verificationCode;
+
+	private boolean enabled;
+
+	public User() {
+
 	}
 
 	public Long getId() {
@@ -92,11 +100,31 @@ public class User {
 		this.roles = roles;
 	}
 
-	public Long getCdc_id() {
-		return cdc_id;
+
+	public Cdc getCdc_rel() {
+		return cdc_rel;
 	}
 
-	public void setCdc_id(Long cdc_id) {
-		this.cdc_id = cdc_id;
+	public void setCdc_rel(Cdc cdc_rel) {
+		this.cdc_rel = cdc_rel;
 	}
+
+	public boolean isEnabled() {
+		return enabled;
+	}
+
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	public String getVerificationCode() {
+		return verificationCode;
+	}
+
+	public void setVerificationCode(String verificationCode) {
+		this.verificationCode = verificationCode;
+	}
+
 }
+
+

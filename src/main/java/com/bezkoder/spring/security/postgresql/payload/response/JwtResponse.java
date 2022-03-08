@@ -6,13 +6,15 @@ public class JwtResponse {
 	private String token;
 	private String type = "Bearer";
 	private Long id;
+	private Long cdc_id;
 	private String username;
 	private String email;
 	private List<String> roles;
 
-	public JwtResponse(String accessToken, Long id, String username, String email, List<String> roles) {
+	public JwtResponse(String accessToken, Long id, Long cdc_id, String username, String email, List<String> roles) {
 		this.token = accessToken;
 		this.id = id;
+		this.cdc_id = cdc_id;
 		this.username = username;
 		this.email = email;
 		this.roles = roles;
@@ -60,5 +62,13 @@ public class JwtResponse {
 
 	public List<String> getRoles() {
 		return roles;
+	}
+
+	public Long getCdc_id() {
+		return cdc_id;
+	}
+
+	public void setCdc_id(Long cdc_id) {
+		this.cdc_id = cdc_id;
 	}
 }

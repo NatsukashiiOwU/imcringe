@@ -1,6 +1,8 @@
 package com.bezkoder.spring.security.postgresql.models;
 
 import javax.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "news")
@@ -11,10 +13,7 @@ public class News {
 	private Long id;
 
 	@Column
-	private String userRelId;
-
-	@Column
-	private String cdcRelId;
+	private Long cdc_id;
 
 	@Column
 	private String article;
@@ -30,6 +29,12 @@ public class News {
 	
 	@Column(length = 1)
 	private Integer state;
+
+	@OneToMany(fetch = FetchType.LAZY)
+	@JoinTable(	name = "news_images",
+			joinColumns = @JoinColumn(name = "news_id"),
+			inverseJoinColumns = @JoinColumn(name = "image_id"))
+	private Set<Images> images = new HashSet<>();
 
 	public Long getId() {
 		return id;
@@ -75,20 +80,19 @@ public class News {
 
 	public void setState(Integer state) { this.state = state; }
 
-	public String getCdcRelId() {
-		return cdcRelId;
+	public Long getCdc_id() {
+		return cdc_id;
 	}
 
-	public void setCdcRelId(String cdcRelId) {
-		this.cdcRelId = cdcRelId;
+	public void setCdc_id(Long cdc_id) {
+		this.cdc_id = cdc_id;
 	}
 
-	public String getUserRelId() {
-		return userRelId;
+	public Set<Images> getImages() {
+		return images;
 	}
 
-	public void setUserRelId(String userRelId) {
-		this.userRelId = userRelId;
+	public void setImages(Set<Images> images) {
+		this.images = images;
 	}
-
 }
