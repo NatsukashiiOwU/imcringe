@@ -21,10 +21,14 @@ public class CdcServices {
 	public Cdc cdcCreate(String cdcUnivercityName) {
 		Cdc newCdc = new Cdc();
 		newCdc.setUniversityName(cdcUnivercityName);
+
 		return repo.save(newCdc);
 	}
 
 	public Long cdcLink(String cdcName) {
+		if(repo.existsByCdcName(cdcName))
+			cdcCreate(cdcName);
+
 		Cdc cdc = repo.findByCdcUniversityName(cdcName);
 
 		return cdc.getId();

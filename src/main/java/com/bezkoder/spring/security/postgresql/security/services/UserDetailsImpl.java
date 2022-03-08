@@ -17,6 +17,8 @@ public class UserDetailsImpl implements UserDetails {
 
 	private Long id;
 
+	private Long cdc_id;
+
 	private String username;
 
 	private String email;
@@ -26,9 +28,10 @@ public class UserDetailsImpl implements UserDetails {
 
 	private Collection<? extends GrantedAuthority> authorities;
 
-	public UserDetailsImpl(Long id, String username, String email, String password,
+	public UserDetailsImpl(Long id, Long cdc_id, String username, String email, String password,
 			Collection<? extends GrantedAuthority> authorities) {
 		this.id = id;
+		this.cdc_id = cdc_id;
 		this.username = username;
 		this.email = email;
 		this.password = password;
@@ -41,7 +44,8 @@ public class UserDetailsImpl implements UserDetails {
 				.collect(Collectors.toList());
 
 		return new UserDetailsImpl(
-				user.getId(), 
+				user.getId(),
+				user.getCdc_rel().getId(),
 				user.getUsername(), 
 				user.getEmail(),
 				user.getPassword(), 
@@ -99,5 +103,13 @@ public class UserDetailsImpl implements UserDetails {
 			return false;
 		UserDetailsImpl user = (UserDetailsImpl) o;
 		return Objects.equals(id, user.id);
+	}
+
+	public Long getCdc_id() {
+		return cdc_id;
+	}
+
+	public void setCdc_id(Long cdc_id) {
+		this.cdc_id = cdc_id;
 	}
 }
